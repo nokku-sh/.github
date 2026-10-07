@@ -56,4 +56,4 @@ Each repo's `.github/renovate.json` only extends `local>nokku-sh/.github`, the r
 
 ## Templates
 
-`templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift.
+`templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift. nokku keeps its own `.golangci.yml` for now.

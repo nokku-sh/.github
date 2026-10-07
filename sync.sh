@@ -30,7 +30,8 @@ for repo in "$root"/*/; do
   [ -f "$repo/.github/renovate.json" ] && sync renovate.json .github/renovate.json
 
   if [ -f "$repo/go.mod" ]; then
-    sync go/.golangci.yml .golangci.yml
+    # nokku keeps its own lint rules, strict shadow alone would be 340 findings.
+    [ "$(basename "$repo")" = nokku ] || sync go/.golangci.yml .golangci.yml
     # Repos with their own release flow (kagi) keep their own cliff.toml.
     if grep -qs 'go-release.yaml' "$repo/.github/workflows/release.yaml"; then
       sync go/cliff.toml cliff.toml
