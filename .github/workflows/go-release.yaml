@@ -1,0 +1,229 @@
+name: Go Release
+
+on:
+  workflow_call:
+    inputs:
+      vulncheck:
+        description: Run govulncheck, only turn this off with a linked reason
+        type: boolean
+        default: true
+      runner:
+        description: Runner for the release job, nk needs a Mac for its darwin binaries
+        type: string
+        default: ubuntu-latest
+    secrets:
+      CLOUDSMITH_API_KEY:
+        description: Pushes the deb, rpm and apk packages, required when the repo has nfpms
+        required: false
+      NOKKU_LICENSE_PUBLIC_KEY:
+        description: kata/licx public key, goreleaser reads it as .Env.NOKKU_LICENSE_PUBLIC_KEY
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      version: ${{ steps.plan.outputs.version }}
+      sha: ${{ steps.plan.outputs.sha }}
+      tagged: ${{ steps.plan.outputs.tagged }}
+      images: ${{ steps.plan.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+        with:
+          tool: git-cliff
+
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if grep -q '^kos:' .goreleaser.yaml 2>/dev/null; then
+            echo "images=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Pushes to main only release early for security fixes, everything else waits for the schedule.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF_TYPE" = branch ]; then
+            last="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+            subjects="$(git log --format=%s "${last:+$last..}HEAD")"
+            if ! grep -qE '^sec(\(.*\))?!?:' <<<"$subjects"; then
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              echo "No security fix since ${last:-the start}, waiting for the scheduled release." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="$(git-cliff --bumped-version)"
+          fi
+
+          # An existing tag without a release means a previous run failed after tagging, so retry it.
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            if gh release view "$version" >/dev/null 2>&1; then
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              echo "Nothing to release, $version is the latest release." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            tagged=true
+            sha="$(git rev-list -n 1 "$version")"
+          else
+            tagged=false
+            sha="$GITHUB_SHA"
+          fi
+
+          {
+            echo "release=true"
+            echo "version=$version"
+            echo "sha=$sha"
+            echo "tagged=$tagged"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing $version from $sha." >> "$GITHUB_STEP_SUMMARY"
+
+  ci:
+    name: CI
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    uses: nokku-sh/.github/.github/workflows/go-ci.yaml@main
+    with:
+      ref: ${{ needs.plan.outputs.sha }}
+      vulncheck: ${{ inputs.vulncheck }}
+
+  release:
+    name: Release
+    needs: [plan, ci]
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    # Shared with go-nightly so a cleanup never runs while another push is half done.
+    concurrency:
+      group: ghcr-${{ github.repository }}
+      cancel-in-progress: false
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      SHA: ${{ needs.plan.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: true # the Tag step pushes
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false # release builds never start from a shared cache
+
+      # Resolves to the calling repo, the checkout above put it in the workspace.
+      - name: Prepare
+        if: hashFiles('.github/actions/prepare/action.yml') != ''
+        uses: ./.github/actions/prepare # zizmor: ignore[self-repository]
+
+      - name: Detect tools
+        id: tools
+        env:
+          HAS_CLOUDSMITH_KEY: ${{ secrets.CLOUDSMITH_API_KEY != '' }}
+        run: |
+          if [ -f .goreleaser.yaml ]; then
+            echo "goreleaser=true" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -q '^nfpms:' .goreleaser.yaml 2>/dev/null; then
+            # Checked before anything is tagged or published, a later failure would leave a release without packages.
+            if [ "$HAS_CLOUDSMITH_KEY" != true ]; then
+              echo "::error::.goreleaser.yaml has nfpms but the CLOUDSMITH_API_KEY secret was not passed"
+              exit 1
+            fi
+            echo "packages=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.tools.outputs.goreleaser == 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - if: steps.tools.outputs.goreleaser == 'true'
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+
+      - if: needs.plan.outputs.images == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Tags pushed with the workflow token do not trigger other workflows, so the release happens right here.
+      - name: Tag
+        if: needs.plan.outputs.tagged != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "$VERSION" "$SHA"
+          git push origin "$VERSION"
+
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+        with:
+          tool: git-cliff
+
+      - name: Release notes
+        run: git-cliff --latest --strip header -o "$RUNNER_TEMP/notes.md"
+
+      - name: GoReleaser
+        if: steps.tools.outputs.goreleaser == 'true'
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          version: "~> v2"
+          args: release --clean --release-notes=${{ runner.temp }}/notes.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COSIGN_YES: "true"
+          NOKKU_LICENSE_PUBLIC_KEY: ${{ secrets.NOKKU_LICENSE_PUBLIC_KEY }}
+          # A repo can hold other tags on the same commit, like the license/v* of a nested module.
+          GORELEASER_CURRENT_TAG: ${{ env.VERSION }}
+
+      - name: GitHub release
+        if: steps.tools.outputs.goreleaser != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+
+      # Set up after goreleaser so the key never reaches the build.
+      - if: steps.tools.outputs.packages == 'true'
+        uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba # v3.1.1
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+
+      # The Cloudsmith repository is named after the GitHub one.
+      - name: Push packages to Cloudsmith
+        if: steps.tools.outputs.packages == 'true'
+        run: |
+          repo="nokku/${GITHUB_REPOSITORY#*/}"
+          shopt -s nullglob
+          for pkg in dist/*.deb; do cloudsmith push deb "$repo/any-distro/any-version" "$pkg"; done
+          for pkg in dist/*.rpm; do cloudsmith push rpm "$repo/any-distro/any-version" "$pkg"; done
+          for pkg in dist/*.apk; do cloudsmith push alpine "$repo/alpine/any-version" "$pkg"; done
+
+      - name: Warm the Go proxy
+        continue-on-error: true
+        run: GOPROXY=https://proxy.golang.org go list -m "$(go list -m)@$VERSION"
+
+      # Version tags are kept forever, users pin them. Only leftovers go.
+      - if: needs.plan.outputs.images == 'true'
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1
+        with:
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true
+          delete-orphaned-images: true
+          token: ${{ github.token }}

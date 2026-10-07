@@ -1,0 +1,60 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Shared renovate preset for nokku-sh repos, use with local>nokku-sh/.github",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":disableDependencyDashboard",
+    ":maintainLockFilesWeekly",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:githubActionsVersions"
+  ],
+  "timezone": "Europe/Vienna",
+  "minimumReleaseAge": "7 days",
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "platformAutomerge": true,
+  "separateMinorPatch": true,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "semanticCommitType": "sec"
+  },
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "description": "Everything below a major merges on its own, CI is the gate",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pinDigest",
+        "bump"
+      ],
+      "groupName": "non-major dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Majors wait for a review",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Frontend deps are bundled into the binary, so their updates should release",
+      "matchFileNames": [
+        "web/**"
+      ],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Shared workflows track main on purpose",
+      "matchDepNames": [
+        "nokku-sh/.github"
+      ],
+      "enabled": false
+    }
+  ]
+}
