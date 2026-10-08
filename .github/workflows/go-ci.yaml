@@ -22,7 +22,8 @@ env:
 jobs:
   go:
     name: Go
-    runs-on: ubuntu-latest
+    # RUNNER is a repo or org variable, fork PRs always stay on hosted runners.
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       # A repo's prepare action reads this to start what its tests need.
@@ -37,7 +38,8 @@ jobs:
         with:
           go-version-file: go.mod
           # Nothing is published from this job, a poisoned cache can only fail it.
-          cache: true # zizmor: ignore[cache-poisoning]
+          # Self-hosted runners keep their own cache, uploading it would mix repos.
+          cache: ${{ runner.environment == 'github-hosted' }} # zizmor: ignore[cache-poisoning]
 
       # Resolves to the calling repo, the checkout above put it in the workspace.
       - name: Prepare

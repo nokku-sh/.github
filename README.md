@@ -29,6 +29,7 @@ Conventions the workflows rely on:
 - `kos:` in the goreleaser config turns on the ghcr login and image cleanup, the nightly reads `main`, `base_image`, `repositories`, `platforms` and `sbom` from the first entry
 - the kata/licx public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
 - `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds
+- a `RUNNER` variable on a repo or the org moves the Go CI job to that runner label, `self-hosted` for the home runners. Fork PRs, nightly and release always run on hosted runners
 
 ## Releases
 
