@@ -12,38 +12,37 @@ check=false
 drift=0
 
 for repo in "$root"/*/; do
-  repo="${repo%/}"
-  [ "$repo" = "$here" ] && continue
-  [ -d "$repo/.git" ] || continue
+   repo="${repo%/}"
+   [ "$repo" = "$here" ] && continue
+   [ -d "$repo/.git" ] || continue
 
-  changed=()
-  sync() {
-    local src="$templates/$1" dst="$repo/$2"
-    cmp -s "$src" "$dst" && return
-    changed+=("$2")
-    $check && return
-    mkdir -p "$(dirname "$dst")"
-    cp "$src" "$dst"
-  }
+   changed=()
+   sync() {
+      local src="$templates/$1" dst="$repo/$2"
+      cmp -s "$src" "$dst" && return
+      changed+=("$2")
+      $check && return
+      mkdir -p "$(dirname "$dst")"
+      cp "$src" "$dst"
+   }
 
-  # Only repos that already opted into renovate.
-  [ -f "$repo/.github/renovate.json" ] && sync renovate.json .github/renovate.json
+   # Only repos that already opted into renovate.
+   [ -f "$repo/.github/renovate.json" ] && sync renovate.json .github/renovate.json
 
-  if [ -f "$repo/go.mod" ]; then
-    # nokku keeps its own lint rules, strict shadow alone would be 340 findings.
-    [ "$(basename "$repo")" = nokku ] || sync go/.golangci.yml .golangci.yml
-    # Repos with their own release flow (kagi) keep their own cliff.toml.
-    if grep -qs 'go-release.yaml' "$repo/.github/workflows/release.yaml"; then
-      sync go/cliff.toml cliff.toml
-    fi
-  fi
+   if [ -f "$repo/go.mod" ]; then
+      # nokku extends the template: a build tag, gofumpt and the exclusions for core/.
+      [ "$(basename "$repo")" = nokku ] || sync go/.golangci.yml .golangci.yml
+      if grep -qs 'go-release.yaml' "$repo/.github/workflows/release.yaml"; then
+         sync go/cliff.toml cliff.toml
+      fi
+   fi
 
-  if [ ${#changed[@]} -gt 0 ]; then
-    drift=1
-    echo "$(basename "$repo"): ${changed[*]}"
-  fi
+   if [ ${#changed[@]} -gt 0 ]; then
+      drift=1
+      echo "$(basename "$repo"): ${changed[*]}"
+   fi
 done
 
 if $check && [ $drift -eq 1 ]; then
-  exit 1
+   exit 1
 fi

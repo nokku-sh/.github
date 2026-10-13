@@ -4,12 +4,12 @@ Reusable workflows, a renovate preset and config templates for all nokku-sh repo
 
 ## Workflows
 
-| Workflow          | What it does                                                                                                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `go-ci.yaml`      | `go mod tidy -diff`, golangci-lint, `go test -race -shuffle=on`, govulncheck, `goreleaser check`, actionlint                                                                                                                 |
+| Workflow          | What it does                                                                                                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `go-ci.yaml`      | `go mod tidy -diff`, golangci-lint, `go test -race -shuffle=on`, govulncheck, `goreleaser check`, actionlint                                                                                                                |
 | `go-release.yaml` | Computes the next version with git-cliff, runs `go-ci` on that commit, tags, then releases with goreleaser or a plain GitHub release for libraries. Pushes deb, rpm and apk packages to Cloudsmith. Removes untagged images |
-| `go-nightly.yaml` | On every push to main, builds the `kos` image with ko, pushes `:nightly`, signs it and removes the previous one                                                                                                              |
-| `actionlint.yaml` | Lints workflows, for repos that are not Go                                                                                                                                                                                   |
+| `go-nightly.yaml` | On every push to main, builds the `kos` image with ko, pushes `:nightly`, signs it and removes the previous one                                                                                                             |
+| `actionlint.yaml` | Lints workflows, for repos that are not Go                                                                                                                                                                                  |
 
 Callers live in `templates/go/workflows/`, copy them into a new repo. Extra jobs go next to the shared one:
 
@@ -39,22 +39,22 @@ The caller template has two commented triggers. The schedule gives weekly releas
 
 ## Verifying a release
 
-The signing job lives in this repo, so every release carries the same certificate identity. The repository flag is what tells nk from nokkud, always pass it:
+The signing job lives in this repo, so every release carries the same certificate identity. The repository flag is what ties a release to its repo, always pass it. nokku releases the core, nk and nokkud together under one `checksums.txt`:
 
 ```sh
-cosign verify-blob --bundle nk_checksums.txt.sigstore.json \
+cosign verify-blob --bundle checksums.txt.sigstore.json \
   --certificate-identity https://github.com/nokku-sh/.github/.github/workflows/go-release.yaml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-github-workflow-repository nokku-sh/nk \
-  nk_checksums.txt
+  --certificate-github-workflow-repository nokku-sh/nokku \
+  checksums.txt
 ```
 
-Renaming or moving `go-release.yaml` changes that identity and breaks the `install.sh` of every repo.
+Renaming or moving `go-release.yaml` changes that identity and breaks every `install.sh`.
 
 ## Renovate
 
-Each repo's `.github/renovate.json` only extends `local>nokku-sh/.github`, the rules live in `default.json`. Updates wait 7 days after their release. Everything below a major automerges with CI as the gate, majors wait for a review. Updates under `web/` are committed as `fix(deps)` because they ship in the binary, vulnerability fixes as `sec(deps)`.
+Each repo's `.github/renovate.json` only extends `local>nokku-sh/.github`, the rules live in `default.json`. Updates wait 7 days after their release. Everything below a major automerges with CI as the gate, majors wait for a review. Updates under `web/` or `core/web/` are committed as `fix(deps)` because they ship in the binary, vulnerability fixes as `sec(deps)`.
 
 ## Templates
 
-`templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift. nokku keeps its own `.golangci.yml` for now.
+`templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift. nokku extends the template in its own `.golangci.yml`.

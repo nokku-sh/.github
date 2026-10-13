@@ -11,10 +11,7 @@
   ],
   "timezone": "Europe/Vienna",
   "minimumReleaseAge": "7 days",
-  "postUpdateOptions": [
-    "gomodTidy",
-    "gomodUpdateImportPaths"
-  ],
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
   "platformAutomerge": true,
   "separateMinorPatch": true,
   "vulnerabilityAlerts": {
@@ -25,35 +22,23 @@
   "packageRules": [
     {
       "description": "Everything below a major merges on its own, CI is the gate",
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest",
-        "pinDigest",
-        "bump"
-      ],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest", "bump"],
       "groupName": "non-major dependencies",
       "automerge": true
     },
     {
       "description": "Majors wait for a review",
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchUpdateTypes": ["major"],
       "automerge": false
     },
     {
       "description": "Frontend deps are bundled into the binary, so their updates should release",
-      "matchFileNames": [
-        "web/**"
-      ],
+      "matchFileNames": ["web/**", "core/web/**"],
       "semanticCommitType": "fix"
     },
     {
       "description": "Shared workflows track main on purpose",
-      "matchDepNames": [
-        "nokku-sh/.github"
-      ],
+      "matchDepNames": ["nokku-sh/.github"],
       "enabled": false
     }
   ]
