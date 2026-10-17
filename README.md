@@ -21,6 +21,8 @@ jobs:
 
 Callers pin `@main` on purpose so a fix lands everywhere at once. Everything inside this repo is SHA pinned and renovate keeps it fresh.
 
+`actions/go-cache` goes right after setup-go with `cache: false`, in go-ci and in any extra job of a caller. Self-hosted runners keep their own Go cache. Hosted runners only save it from `main`, other branches restore from it. Release and nightly builds don't use the Actions cache.
+
 Conventions the workflows rely on:
 
 - `go.mod` at the root, `.goreleaser.yaml` (not `.yml`) if the repo ships binaries
@@ -29,13 +31,13 @@ Conventions the workflows rely on:
 - `kos:` in the goreleaser config turns on the ghcr login and image cleanup, the nightly reads `main`, `base_image`, `repositories`, `platforms` and `sbom` from the first entry
 - the kata/licx public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
 - `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds
-- a `RUNNER` variable on a repo or the org moves the Go CI job to that runner label, `self-hosted` for the home runners. Fork PRs, nightly and release always run on hosted runners
+- a `RUNNER` variable on a repo or the org moves the Go CI job to that runner label, `self-hosted` for the home runners. The nightly and the CI run inside a release follow it too. Fork PRs and the release job itself always run on hosted runners
 
 ## Releases
 
-Releases are manual for now, run the Release workflow or push a `v*` tag. Nothing is released unless git-cliff finds commits that bump the version.
+Releases are manual for now, run the Release workflow or push a `v*` tag. Nothing is released unless git-cliff finds commits that bump the version. Commits that only touch docs, workflows, tests or dev config don't bump it, and neither do `chore(deps)` updates. The list lives in `GIT_CLIFF_EXCLUDE_PATH` in `go-release.yaml`.
 
-The caller template has two commented triggers. The schedule gives weekly releases. The push to main trigger releases right away when a `sec` commit lands. Stable image tags are never deleted, only untagged leftovers and the previous nightly.
+The caller template has two commented triggers. The schedule gives weekly releases. The push to main trigger releases right away when a `sec` commit lands. Neither one cuts a repo's first release, that is always done by hand. Stable image tags are never deleted, only untagged leftovers and the previous nightly.
 
 ## Verifying a release
 

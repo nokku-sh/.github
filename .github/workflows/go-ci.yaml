@@ -37,9 +37,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
-          # Nothing is published from this job, a poisoned cache can only fail it.
-          # Self-hosted runners keep their own cache, uploading it would mix repos.
-          cache: ${{ runner.environment == 'github-hosted' }} # zizmor: ignore[cache-poisoning]
+          cache: false
+
+      # Nothing is published from this job, a poisoned cache can only fail it.
+      - uses: nokku-sh/.github/actions/go-cache@main
 
       # Resolves to the calling repo, the checkout above put it in the workspace.
       - name: Prepare
@@ -54,17 +55,15 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
+          skip-cache: ${{ runner.environment != 'github-hosted' }}
 
       - name: Test
         run: go test -race -shuffle=on ./...
 
-      - if: inputs.vulncheck
-        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
-        with:
-          # The action defaults to stable and would ignore go.mod.
-          go-version-input: ""
-          go-version-file: go.mod
-          repo-checkout: false
+      # Not govulncheck-action, its own setup-go uploads the self-hosted runner's whole Go cache.
+      - name: Vulncheck
+        if: inputs.vulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
       - name: GoReleaser config
         if: hashFiles('.goreleaser.yaml') != ''

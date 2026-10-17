@@ -1,0 +1,36 @@
+name: Go cache
+description: Caches Go modules and builds on hosted runners, run it right after setup-go with cache off.
+
+runs:
+  using: composite
+  steps:
+    # Self-hosted runners keep their own cache, uploading it would mix repos.
+    - id: key
+      if: runner.environment == 'github-hosted'
+      shell: bash
+      env:
+        HASH: ${{ hashFiles('go.sum') }}
+      run: |
+        prefix="go-$RUNNER_OS-$RUNNER_ARCH-$(go env GOVERSION)-"
+        {
+          echo "prefix=$prefix"
+          echo "key=$prefix$HASH"
+          echo "paths<<EOF"
+          go env GOMODCACHE GOCACHE
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - if: steps.key.outcome == 'success' && github.ref == 'refs/heads/main'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.key.outputs.paths }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+
+    # Other branches only restore from main, so they don't each pile up a copy.
+    - if: steps.key.outcome == 'success' && github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.key.outputs.paths }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
