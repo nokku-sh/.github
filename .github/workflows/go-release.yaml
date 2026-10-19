@@ -8,9 +8,9 @@ on:
         type: boolean
         default: true
       runner:
-        description: Runner for the release job, nk needs a Mac for its darwin binaries
+        description: Runner for the release job, nk needs a Mac for its darwin binaries. Empty follows RUNNER
         type: string
-        default: ubuntu-latest
+        default: ""
     secrets:
       CLOUDSMITH_API_KEY:
         description: Pushes the deb, rpm and apk packages, required when the repo has nfpms
@@ -25,7 +25,7 @@ permissions:
 jobs:
   plan:
     name: Plan
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     outputs:
       release: ${{ steps.plan.outputs.release }}
@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: git-cliff
 
@@ -124,7 +124,7 @@ jobs:
   release:
     name: Release
     needs: [plan, ci]
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ inputs.runner || vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     permissions:
       contents: write
@@ -148,6 +148,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false # release builds never start from a shared cache
+
+      # Self-hosted runners share their Go caches with every branch's CI, so builds that ship start empty.
+      - name: Fresh Go caches
+        run: |
+          {
+            echo "GOCACHE=$RUNNER_TEMP/go-build"
+            echo "GOMODCACHE=$RUNNER_TEMP/go-mod"
+            echo "GOFLAGS=-modcacherw" # read-only module files would block the runner's temp cleanup
+          } >> "$GITHUB_ENV"
 
       # Resolves to the calling repo, the checkout above put it in the workspace.
       - name: Prepare
@@ -199,7 +208,7 @@ jobs:
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "$VERSION"
 
-      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: git-cliff
 
@@ -208,7 +217,7 @@ jobs:
 
       - name: GoReleaser
         if: steps.tools.outputs.goreleaser == 'true'
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: "~> v2"
           args: release --clean --release-notes=${{ runner.temp }}/notes.md

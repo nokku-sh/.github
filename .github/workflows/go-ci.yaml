@@ -15,10 +15,6 @@ on:
 permissions:
   contents: read
 
-env:
-  # renovate: datasource=github-releases depName=golangci/golangci-lint
-  GOLANGCI_LINT_VERSION: v2.14.0
-
 jobs:
   go:
     name: Go
@@ -54,7 +50,7 @@ jobs:
 
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          version: latest
           skip-cache: ${{ runner.environment != 'github-hosted' }}
 
       - name: Test
@@ -67,7 +63,7 @@ jobs:
 
       - name: GoReleaser config
         if: hashFiles('.goreleaser.yaml') != ''
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: "~> v2"
           args: check
@@ -75,7 +71,7 @@ jobs:
   # Inlined instead of calling actionlint.yaml, release would hit the nesting limit.
   workflows:
     name: Workflows
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -83,4 +79,11 @@ jobs:
           ref: ${{ inputs.ref }}
           persist-credentials: false
 
-      - uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2
+      # Not the raven action, it needs npm and pipx which self-hosted runners don't ship.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Actionlint
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12

@@ -21,7 +21,7 @@ jobs:
 
 Callers pin `@main` on purpose so a fix lands everywhere at once. Everything inside this repo is SHA pinned and renovate keeps it fresh.
 
-`actions/go-cache` goes right after setup-go with `cache: false`, in go-ci and in any extra job of a caller. Self-hosted runners keep their own Go cache. Hosted runners only save it from `main`, other branches restore from it. Release and nightly builds don't use the Actions cache.
+`actions/go-cache` goes right after setup-go with `cache: false`, in go-ci and in any extra job of a caller. Self-hosted runners keep their own Go cache. Hosted runners only save it from `main`, other branches restore from it. Release and nightly builds start from empty Go caches on any runner.
 
 Conventions the workflows rely on:
 
@@ -30,8 +30,8 @@ Conventions the workflows rely on:
 - `nfpms:` in the goreleaser config turns on the Cloudsmith push to `nokku/<repo name>` and makes the `CLOUDSMITH_API_KEY` secret mandatory
 - `kos:` in the goreleaser config turns on the ghcr login and image cleanup, the nightly reads `main`, `base_image`, `repositories`, `platforms` and `sbom` from the first entry
 - the kata/licx public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
-- `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds
-- a `RUNNER` variable on a repo or the org moves the Go CI job to that runner label, `self-hosted` for the home runners. The nightly and the CI run inside a release follow it too. Fork PRs and the release job itself always run on hosted runners
+- `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds. It wins over `RUNNER`
+- a `RUNNER` variable on a repo or the org moves every job to that runner label, `self-hosted` for the home runners. Fork PRs always stay on hosted runners
 
 ## Releases
 

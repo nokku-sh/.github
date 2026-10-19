@@ -6,8 +6,7 @@
     ":semanticCommits",
     ":disableDependencyDashboard",
     ":maintainLockFilesWeekly",
-    "helpers:pinGitHubActionDigests",
-    "customManagers:githubActionsVersions"
+    "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Europe/Vienna",
   "minimumReleaseAge": "7 days",
