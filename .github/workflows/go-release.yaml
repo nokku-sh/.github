@@ -16,7 +16,7 @@ on:
         description: Pushes the deb, rpm and apk packages, required when the repo has nfpms
         required: false
       NOKKU_LICENSE_PUBLIC_KEY:
-        description: kata/licx public key, goreleaser reads it as .Env.NOKKU_LICENSE_PUBLIC_KEY
+        description: license public key, goreleaser reads it as .Env.NOKKU_LICENSE_PUBLIC_KEY
         required: false
 
 permissions:

@@ -29,7 +29,7 @@ Conventions the workflows rely on:
 - `.github/actions/prepare/action.yml` in the calling repo runs right after Go is set up, in CI, nightly and release. It builds frontends, sets cgo flags or installs test tools. `RUN_TESTS=true` is only set in CI, use it to start services the tests need
 - `nfpms:` in the goreleaser config turns on the Cloudsmith push to `nokku/<package name>`, one Cloudsmith repository per package, and makes the `CLOUDSMITH_API_KEY` secret mandatory
 - `kos:` in the goreleaser config turns on the ghcr login and image cleanup, the nightly reads `main`, `base_image`, `repositories`, `platforms` and `sbom` from the first entry
-- the kata/licx public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
+- the license public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
 - `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds. It wins over `RUNNER`
 - a `RUNNER` variable on a repo or the org moves every job to that runner label, `self-hosted` for the home runners. Fork PRs always stay on hosted runners
 

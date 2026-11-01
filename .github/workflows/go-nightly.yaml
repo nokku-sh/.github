@@ -98,7 +98,7 @@ jobs:
             echo "      - -X github.com/mizuchilabs/kata/buildinfo.Version=nightly"
             echo "      - -X github.com/mizuchilabs/kata/buildinfo.Commit=$GITHUB_SHA"
             if [ -n "$NOKKU_LICENSE_PUBLIC_KEY" ]; then
-              echo "      - -X github.com/mizuchilabs/kata/licx.pubkey=$NOKKU_LICENSE_PUBLIC_KEY"
+              echo "      - -X github.com/nokku-sh/nokku/core/internal/config.licensePublicKey=$NOKKU_LICENSE_PUBLIC_KEY"
             fi
           } > .ko.yaml
           # ko prints only the multi-arch index ref on stdout, that is what gets signed.
