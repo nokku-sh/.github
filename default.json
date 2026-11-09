@@ -31,6 +31,30 @@
       "automerge": false
     },
     {
+      "description": "Apps build with the newest Go, the go line in the root go.mod is their toolchain",
+      "matchDepTypes": ["golang"],
+      "matchFileNames": ["go.mod"],
+      "rangeStrategy": "bump",
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "The toolchain line picks the Go a binary is built with, so a bump has to release",
+      "matchDepTypes": ["toolchain"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Go releases get a PR of their own, so a Go minor that breaks the linter blocks nothing else",
+      "matchDatasources": ["golang-version"],
+      "groupName": null
+    },
+    {
+      "description": "Go patch releases are security releases from the Go team, ship them right away",
+      "matchDatasources": ["golang-version"],
+      "matchUpdateTypes": ["patch"],
+      "minimumReleaseAge": null,
+      "semanticCommitType": "sec"
+    },
+    {
       "description": "Frontend deps are bundled into the binary, so their updates should release",
       "matchFileNames": ["web/**", "core/web/**"],
       "semanticCommitType": "fix"

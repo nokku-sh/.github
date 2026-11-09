@@ -57,6 +57,8 @@ Renaming or moving `go-release.yaml` changes that identity and breaks every `ins
 
 Each repo's `.github/renovate.json` only extends `local>nokku-sh/.github`, the rules live in `default.json`. Updates wait 7 days after their release. Everything below a major automerges with CI as the gate, majors wait for a review. Updates under `web/` or `core/web/` are committed as `fix(deps)` because they ship in the binary, vulnerability fixes as `sec(deps)`.
 
+The `go` line in the root `go.mod` follows every Go release, in a PR of its own. Patches skip the 7 days and come as `sec(deps)`, they are the Go team's security releases. Minors come as `fix(deps)` after the 7 days, which also gives golangci-lint time to catch up.
+
 ## Templates
 
 `templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift. nokku extends the template in its own `.golangci.yml`.
