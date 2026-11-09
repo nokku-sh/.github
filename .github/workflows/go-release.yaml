@@ -15,8 +15,8 @@ on:
       CLOUDSMITH_API_KEY:
         description: Pushes the deb, rpm and apk packages, required when the repo has nfpms
         required: false
-      NOKKU_LICENSE_PUBLIC_KEY:
-        description: license public key, goreleaser reads it as .Env.NOKKU_LICENSE_PUBLIC_KEY
+      BUILD_ENV:
+        description: NAME=value lines the build sees as env, read in .goreleaser.yaml as .Env.NAME. Only for values that may end up in the binary, like a license public key
         required: false
 
 permissions:
@@ -215,6 +215,12 @@ jobs:
       - name: Release notes
         run: git-cliff --latest --strip header -o "$RUNNER_TEMP/notes.md"
 
+      - name: Build env
+        if: steps.tools.outputs.goreleaser == 'true'
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: printf '%s\n' "$BUILD_ENV" | sed '/^[[:space:]]*$/d' >> "$GITHUB_ENV"
+
       - name: GoReleaser
         if: steps.tools.outputs.goreleaser == 'true'
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
@@ -224,7 +230,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           COSIGN_YES: "true"
-          NOKKU_LICENSE_PUBLIC_KEY: ${{ secrets.NOKKU_LICENSE_PUBLIC_KEY }}
           # A repo can hold other tags on the same commit, like the license/v* of a nested module.
           GORELEASER_CURRENT_TAG: ${{ env.VERSION }}
 

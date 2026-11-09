@@ -28,8 +28,8 @@ Conventions the workflows rely on:
 - `go.mod` at the root, `.goreleaser.yaml` (not `.yml`) if the repo ships binaries
 - `.github/actions/prepare/action.yml` in the calling repo runs right after Go is set up, in CI, nightly and release. It builds frontends, sets cgo flags or installs test tools. `RUN_TESTS=true` is only set in CI, use it to start services the tests need
 - `nfpms:` in the goreleaser config turns on the Cloudsmith push to `nokku/<package name>`, one Cloudsmith repository per package, and makes the `CLOUDSMITH_API_KEY` secret mandatory
-- `kos:` in the goreleaser config turns on the ghcr login and image cleanup, the nightly reads `main`, `base_image`, `repositories`, `platforms` and `sbom` from the first entry
-- the license public key is passed as the `NOKKU_LICENSE_PUBLIC_KEY` secret and read as `.Env.NOKKU_LICENSE_PUBLIC_KEY`
+- `kos:` in the goreleaser config turns on the ghcr login and image cleanup. The nightly builds the first entry with ko the way goreleaser would, with the ldflags, flags and env of the build it uses. `{{ .Version }}` becomes `nightly`, the commit fields come from git
+- the optional `BUILD_ENV` secret holds `NAME=value` lines the nightly and release builds see as env, read in the goreleaser config as `.Env.NAME`. The caller fills it, like `BUILD_ENV: NOKKU_LICENSE_PUBLIC_KEY=${{ secrets.NOKKU_LICENSE_PUBLIC_KEY }}`. Only for values that may end up in the binary, like a license public key. `CLOUDSMITH_API_KEY` is set up only after goreleaser is done, it never reaches the build
 - `runner: macos-latest` moves the release job to a Mac, for repos with darwin cgo builds. It wins over `RUNNER`
 - a `RUNNER` variable on a repo or the org moves every job to that runner label, `self-hosted` for the home runners. Fork PRs always stay on hosted runners
 
