@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
           tool: git-cliff
 
@@ -208,7 +208,7 @@ jobs:
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "$VERSION"
 
-      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
           tool: git-cliff
 
@@ -246,7 +246,7 @@ jobs:
 
       # Set up after goreleaser so the key never reaches the build.
       - if: steps.tools.outputs.packages == 'true'
-        uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba # v3.1.1
+        uses: cloudsmith-io/cloudsmith-cli-action@92b1383b22bbd36d804b858f273abcdf4d349f6b # v3.2.1
         with:
           api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
 
