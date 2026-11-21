@@ -59,6 +59,12 @@ Each repo's `.github/renovate.json` only extends `local>nokku-sh/.github`, the r
 
 The `go` line in the root `go.mod` follows every Go release, in a PR of its own. Patches skip the 7 days and come as `sec(deps)`, they are the Go team's security releases. Minors come as `fix(deps)` after the 7 days, which also gives golangci-lint time to catch up.
 
+## Issue templates and security policy
+
+`.github/ISSUE_TEMPLATE/` and `SECURITY.md` are the org defaults. GitHub shows them in every repo that has none of its own, no copying needed. Blank issues are off, so people pick the bug, feature or "question or other" form. The bug and feature forms set the `Bug` and `Feature` issue types.
+
+A repo that adds its own `.github/ISSUE_TEMPLATE/` loses all the default templates, there is no merging. The same goes for a repo with its own `SECURITY.md` (nokku and ajar have one, nokku has its own templates too).
+
 ## Templates
 
 `templates/` holds files that can't be referenced remotely. Run `./sync.sh` to copy them into the sibling checkouts, `./sync.sh --check` to only report drift. nokku extends the template in its own `.golangci.yml`.

@@ -12,7 +12,6 @@
   "minimumReleaseAge": "7 days",
   "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
   "platformAutomerge": true,
-  "separateMinorPatch": true,
   "vulnerabilityAlerts": {
     "enabled": true,
     "semanticCommitType": "sec"
